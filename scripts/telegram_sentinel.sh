@@ -114,8 +114,14 @@ compare_bingos() {
     if [ "$send_success_messages" = true ]; then
       send_telegram_message "<b>NODE $node_address IS ONLINE</b>%0A%0ANew bingo occurred <i>$1</i>!%0A%0APrevious recorded bingo occurred <i>$2</i>."
     fi
+  
   elif (( $current_timestamp == $previous_timestamp )); then
     echo "NODE $node_address IS ONLINE! No new bingos have occurred since $2."
+    
+    if [ "$send_success_messages" = true ]; then
+      send_telegram_message "<b>NODE $node_address IS ONLINE</b>%0A%0AThe current bingo is the same as the previously recorded bingo (<i>$2</i>)."
+    fi
+    
   else
     echo "NODE $node_address IS OFFLINE! Can't find any recent bingos! Previous recorded bingo occurred $2."
     send_telegram_message "<b>NODE $node_address IS OFFLINE</b>%0A%0ACan't find any recent bingos!%0A%0APrevious recorded bingo occurred <i>$2</i>."
