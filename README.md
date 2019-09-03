@@ -12,7 +12,7 @@ The only requirement is that curl is installed. The rest of the script is normal
 
 #### Installation
 
-`curl -LO `
+`curl -LO https://raw.githubusercontent.com/SebastianJ/harmony-monitoring/master/scripts/telegram_monitoring.sh && sudo chmod u+x telegram_monitoring.sh`
 
 Telegram:
 
