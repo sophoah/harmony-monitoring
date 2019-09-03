@@ -112,7 +112,7 @@ compare_bingos() {
     echo "NODE $node_address IS ONLINE! New bingo happened $1! Previous recorded bingo was $2."
     
     if [ "$send_success_messages" = true ]; then
-      send_telegram_message "<b>NODE $node_address IS ONLINE</b>%0A%0ANew bingo happened <i>$1</i>!%0A%0APrevious recorded bingo was <i>$2</i>."
+      send_telegram_message "<b>NODE $node_address IS ONLINE</b>%0A%0ANew bingo occurred <i>$1</i>!%0A%0APrevious recorded bingo was <i>$2</i>."
     fi
   else
     echo "NODE $node_address IS OFFLINE! Can't find any recent bingos! Previous recorded bingo was $2."
