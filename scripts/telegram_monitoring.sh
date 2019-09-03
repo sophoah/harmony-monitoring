@@ -9,12 +9,13 @@ Options:
    -p path        the path of the node directory (without an ending slash) - will default to the current user's home directory if no path is provided
    -a address     the address of the node that is monitored
    -i interval    interval between checking for bingos (30s, 1m, 30m, 1h etc.)
-   -s true,false  send telegram messages for successful checks (and not only for failed checks) - expects true/false. Defaults to false (i.e. only sending messages when the node is offline)
+   -s             send telegram messages for successful checks (and not only for failed checks) - expects true/false. Defaults to false (i.e. only sending messages when the node is offline)
+   -d             if the process should be daemonized / run in an endless loop (e.g. if running it using Systemd and not Cron)
    -h             print this help
 EOT
 }
 
-while getopts "t:c:p:a:i:s:h" opt; do
+while getopts "t:c:p:a:i:sdh" opt; do
   case ${opt} in
     t)
       telegram_bot_token="${OPTARG}"
@@ -32,7 +33,10 @@ while getopts "t:c:p:a:i:s:h" opt; do
       interval="${OPTARG}"
       ;;
     s)
-      send_success_messages="${OPTARG}"
+      send_success_messages=true
+      ;;
+    d)
+      daemonize=true
       ;;
     h|*)
       usage
@@ -53,14 +57,6 @@ executing_user=`whoami`
 
 if [ -z "$node_path" ]; then
   node_path=${HOME}
-fi
-
-if [ -z "$send_success_messages" ] || [ "$send_success_messages" == "false" ]; then
-  send_success_messages=false
-elif [ "$send_success_messages" == "true" ]; then
-  send_success_messages=true
-else
-  send_success_messages=false
 fi
 
 bingo_file="bingos"
@@ -131,9 +127,13 @@ send_telegram_message() {
 
 echo "Running monitoring script as $executing_user!"
 
-# Run in an infinite loop
-while [ 1 ]
-do
+if [ "$daemonize" = true ]; then
+  # Run in an infinite loop
+  while [ 1 ]
+  do
+    check_bingo
+    sleep $interval
+  done
+else
   check_bingo
-  sleep $interval
-done
+fi
