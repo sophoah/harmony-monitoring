@@ -9,7 +9,7 @@ Options:
    -p path        the path of the node directory (without an ending slash) - will default to the current user's home directory if no path is provided
    -a address     the address of the node that is monitored
    -i interval    interval between checking for bingos (30s, 1m, 30m, 1h etc.)
-   -s             send telegram messages for successful checks (and not only for failed checks) - expects true/false. Defaults to false (i.e. only sending messages when the node is offline)
+   -s             send telegram messages for successful checks (and not only for failed checks).
    -d             if the process should be daemonized / run in an endless loop (e.g. if running it using Systemd and not Cron)
    -h             print this help
 EOT
