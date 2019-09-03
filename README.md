@@ -22,6 +22,8 @@ To run your node using Systemd:
 
 ### telegram_sentinel.sh
 
+Monitor your node for bingos and receive messages via Telegram if bingos stop working. You can optionally also receive messages every time a successful bingo check happens.
+
 #### Requirements
 The only requirement is that curl is installed. The rest of the script is normal bash.
 
