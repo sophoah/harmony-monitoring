@@ -27,11 +27,13 @@ Monitor your node for bingos and receive messages via Telegram if bingos stop wo
 #### Requirements
 The only requirement is that curl is installed. The rest of the script is normal bash.
 
-#### Installation
+#### Installation & Setup
+
+##### Downloading the script
 
 `curl -LO https://raw.githubusercontent.com/SebastianJ/harmony-monitoring/master/scripts/telegram_sentinel.sh && sudo chmod u+x telegram_sentinel.sh`
 
-Telegram:
+##### Setting up Telegram
 
 1. Interact with [bot father](https://telegram.me/botfather) and create a new bot. [Bot father](https://telegram.me/botfather) will give you an access token that you need in order to interact with Telegram's HTTP API.
 
@@ -39,7 +41,7 @@ Telegram:
 
 3. Go to https://api.telegram.org/botTHE_ACCESS_TOKEN_BOT_FATHER_GAVE_YOU/getUpdates and look for "chat":{"id":CHAT_ID,"first_name":"FIRST_NAME","username":"USERNAME","type":"private"}. Save the chat id.
 
-#### Invocation
+#### Running the script
 
 `./telegram_sentinel.sh -h` will display all options for running the monitoring script.
 
