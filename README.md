@@ -9,7 +9,7 @@ This repo includes scripts and configs for optimally running a Harmony Mainnet o
 
 To run your node using Systemd:
 
-1. `curl -LO https://raw.githubusercontent.com/SebastianJ/harmony-monitoring/master/configs/systemd/harmony.service.conf`
+1. `curl -L -o harmony.service https://raw.githubusercontent.com/SebastianJ/harmony-monitoring/master/configs/systemd/harmony.service.conf`
 2. Replace all instances of YOUR_NODE_DIR with the absolute path to your node (typically /root if running the node as the root user)
 3. Create an empty bls_passkey file: `sudo touch YOUR_NODE_DIR/bls_passkey.txt`
 3. `sudo rm -rf /lib/systemd/system/harmony.service && sudo cp harmony.service /lib/systemd/system`
