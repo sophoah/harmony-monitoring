@@ -23,7 +23,7 @@ Telegram:
 3. Go to https://api.telegram.org/botTHE_ACCESS_TOKEN_BOT_FATHER_GAVE_YOU/getUpdates and look for "chat":{"id":CHAT_ID,"first_name":"FIRST_NAME","username":"USERNAME","type":"private"}. Save the chat id.
 
 #### Invocation
-Usage:
+
 `./telegram_monitoring.sh -h` will display all options for running the monitoring script.
 
 You should run the monitoring script as the same user that's running your mainnet or Pangaea node.
