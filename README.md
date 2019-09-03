@@ -24,16 +24,9 @@ Telegram:
 
 #### Invocation
 Usage:
-Options:
-   -t token       the bot's Telegram API token
-   -c chat_id     the chat id of where to send the bot's messages
-   -p path        the path of the node directory (without an ending slash) - will default to the current user's home directory if no path is provided
-   -a address     the address of the node that is monitored
-   -i interval    interval between checking for bingos (30s, 1m, 30m, 1h etc.)
-   -s true,false  send telegram messages for successful checks (and not only for failed checks) - expects true/false. Defaults to false (i.e. only sending messages when the node is offline)
-   -h             print this help
+`./telegram_monitoring.sh -h` will display all options for running the monitoring script.
 
-You should run the monitoring script as the same user that's running the node.
+You should run the monitoring script as the same user that's running your mainnet or Pangaea node.
 
 If you're running your node as root the script will automatically look for bingos in /root/latest/zero*.log, if running the node as a regular user the script will look for bingos in /home/your_username/latest/zero*.log. A custom installation directory can also be supplied to the script using the -p parameter (e.g. -p /opt/harmony/pangaea/node)
 
