@@ -313,7 +313,7 @@ check_sync_consensus_status() {
       error_message "Your latest bingo was ${formatted_time} ago!"
       error_message "Either something is wrong with your node or the network is experiencing issues. Please check https://t.me/harmonypangaea or the Discord #pangaea channel for network updates."
     else
-      success_message "Bingo status: latest bingo happened at ${bold_text}${current_bingo}${normal_text}"
+      success_message "Bingo status: latest bingo happened at ${bold_text}${current_bingo} (${difference} second(s) ago)${normal_text}"
     fi
   fi
   
