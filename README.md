@@ -38,6 +38,8 @@ This node health script has the following features:
 8. Will check your node's online status using https://harmony.one/pga/network.csv
 9. Will check your sync status, block count and bingo status using latest/zero*.log. The script will also alert if you're more than 1000 blocks behind the latest reported block number for your shard and it will also report when you haven't received any bingos for more than a day.
 
+The Telegram bot might be integrated into the health checker script. Also planning support for email and SMS notifications.
+
 #### Requirements
 The only requirement is that wget is installed (which it typically is). The rest of the script is normal bash.
 
@@ -61,6 +63,11 @@ The script is currently defaulting to Pangaea, but it's also compatible with the
 
 `./node_health.sh -m`
 
+The script can also be executed in an infinite loop with a specified interval:
+
+`./node_health.sh -d -i 1m`
+
+The above will check your node health status every minute.
 
 ### node_sentinel.sh
 
