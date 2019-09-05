@@ -161,7 +161,7 @@ check_for_correct_installation() {
 }
 
 check_wallet() {
-  output_header "${header_index}. Checking that your wallet is properly configured"
+  output_header "${header_index}. Wallet configuration - checking that your wallet is properly configured"
   ((header_index++))
   
   if [ "$wallet_script_installed" = true ] || [ "$wallet_binary_installed" = true ]; then
@@ -189,7 +189,7 @@ check_wallet() {
 }
 
 check_node() {
-  output_header "${header_index}. Checking that your node is running"
+  output_header "${header_index}. Node - checking that your node is running"
   ((header_index++))
   
   if ps aux | grep '[h]armony -bootnodes' | grep 54.86.126.90 > /dev/null; then
@@ -224,7 +224,7 @@ check_node() {
 }
 
 check_network_status() {
-  output_header "${header_index}. Checking network status for your shard and node"
+  output_header "${header_index}. Network status - checking network status for your shard and node"
   ((header_index++))
   
   download_file "network"
@@ -288,7 +288,7 @@ check_network_status() {
 }
 
 check_sync_consensus_status() {
-  output_header "${header_index}. Checking syncing and consensus status for your node"
+  output_header "${header_index}. Sync/Consensus - checking syncing and consensus status for your node"
   ((header_index++))
   
   parse_current_block
@@ -339,7 +339,7 @@ check_sync_consensus_status() {
 }
 
 check_wallet_balances() {
-  output_header "${header_index}. Checking wallet balances for your node"
+  output_header "${header_index}. Wallet - checking wallet balances for your node"
   ((header_index++))
   
   if [ "$wallet_script_installed" = true ] || [ "$wallet_binary_installed" = true ]; then
