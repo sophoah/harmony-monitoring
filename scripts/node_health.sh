@@ -498,7 +498,8 @@ check_status() {
   check_sync_consensus_status
   check_wallet_balances
   
-  #cleanup
+  cleanup
+  header_index=1
 }
 
 
