@@ -194,8 +194,10 @@ check_node() {
   
   if ps aux | grep '[h]armony -bootnodes' | grep 54.86.126.90 > /dev/null; then
     success_message "Node is running and using the latest bootnodes: ${bold_text}YES${normal_text}"
+    node_running=true
   else
     error_message "Node is running and using the latest bootnodes: ${bold_text}NO${normal_text}"
+    node_running=false
     
     if ps aux | grep '[h]armony -bootnodes' > /dev/null; then
       error_message "You have a running node process but it isn't using the latest bootnodes!"
@@ -206,6 +208,8 @@ check_node() {
       error_message "cd $node_path; rm -rf node.sh; wget https://raw.githubusercontent.com/harmony-one/harmony/master/scripts/node.sh; sudo chmod u+x node.sh"
       error_message "Restart your node:"
       error_message "cd $node_path; sudo ./node.sh${network_switch} -c"
+    else
+      error_message "Please start your node as soon as possible: cd ${node_path}; ./node.sh${network_switch} (don't forget to run the command in tmux if you're using tmux)"
     fi
   fi
   
@@ -260,9 +264,22 @@ check_network_status() {
     
       if [ -z "$reported_as_online" ]; then
         error_message "Your address ${bold_text}${address}${normal_text}${red_text} is reported as: ${bold_text}OFFLINE!${normal_text}"
-        error_message "If this script reports your node as running but the network consider you OFFLINE there might be an issue with an internal node running your address. Please report your address to the support representatives on https://t.me/harmonypangaea or in the Discord #pangaea channel."
+        
+        if [ "$node_running" = true ]; then
+          error_message "Your node has been detected as running on your server but the Harmony Pangaea Network status page (https://harmony.one/pga/network) reports you as OFFLINE."
+          error_message "If this issue continues after the next network status update (usually happens within the next 15-30 minutes) there might be a misconfigured or erronous internal node running your address."
+          error_message "Please report your address ${address} to the support representatives on https://t.me/harmonypangaea or in the Discord #pangaea channel."
+        else
+          error_message "There's no node running on your server and Harmony's Network status page has reported you as OFFLINE."
+          error_message "Please start your node as soon as possible: cd ${node_path}; ./node.sh${network_switch} (don't forget to run the command in tmux if you're using tmux)"
+        fi
       else
         success_message "Your address ${bold_text}${address}${normal_text}${green_text} is reported as: ${bold_text}ONLINE!${normal_text}"
+        
+        if [ "$node_running" = false ]; then
+          error_message "Your node is currently not running on your server. If you don't fix this before the next network status refresh at https://harmony.one/pga/network your node will be marked as OFFLINE!"
+        fi
+        
       fi
     fi
   fi
@@ -369,7 +386,7 @@ parse_from_zerolog() {
       parsed_zerolog_value=`tac ${node_path}/latest/zerolog*.log | grep -oam 1 -E "\"(blockNumber|myBlock)\":[0-9\"]*" | grep -oam 1 -E "[0-9]+"`
       ;;
     sync)
-      parsed_zerolog_value=`tac ${node_path}/latest/zerolog*.log | grep -oam 1 "Node is now IN SYNC"`
+      parsed_zerolog_value=`tac ${node_path}/latest/zerolog*.log | grep -oam 1 -E "\"(blockNumber|myBlock)\":[0-9\"]*" | grep -oam 1 -E "\"myBlock\":[0-9\"]*"`
       ;;
     *)
       ;;
