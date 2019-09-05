@@ -11,17 +11,19 @@ usage () {
    cat << EOT
 Usage: $0 [option] command
 Options:
-   -n path        the path of the node directory - defaults to the current user's home directory if no path is provided
-   -w path        the path of the wallet directory - defaults to the current user's home directory if no path is provided
-   -i interval    interval between checking for bingos (30s, 1m, 30m, 1h etc.)
-   -d             if the process should be daemonized / run in an endless loop (e.g. if running it using Systemd and not Cron)
-   -t             use the Pangaea network
-   -m             use the Mainnet network
-   -h             print this help
+   -n path      the path of the node directory - defaults to the current user's home directory if no path is provided
+   -w path      the path of the wallet directory - defaults to the current user's home directory if no path is provided
+   -i interval  interval between checking for bingos (30s, 1m, 30m, 1h etc.)
+   -c count     the maximum number of blocks your node can be behind the reported block for your shard (defaults to 1000)
+   -s seconds   the maximum number of seconds since your last bingo. Defaults to 3600 = 1 hour
+   -d           if the process should be daemonized / run in an endless loop (e.g. if running it using Systemd and not Cron)
+   -t           use the Pangaea network
+   -m           use the Mainnet network
+   -h           print this help
 EOT
 }
 
-while getopts "n:w:i:dtmh" opt; do
+while getopts "n:w:i:c:s:dtmh" opt; do
   case ${opt} in
     n)
       node_path="${OPTARG%/}"
@@ -31,6 +33,16 @@ while getopts "n:w:i:dtmh" opt; do
       ;;
     i)
       interval="${OPTARG}"
+      ;;
+    c)
+      maximum_block_count_difference="${OPTARG}"
+      convert_to_integer "$maximum_block_count_difference"
+      maximum_block_count_difference=$converted
+      ;;
+    s)
+      maximum_block_time_difference="${OPTARG}"
+      convert_to_integer "$maximum_block_time_difference"
+      maximum_block_time_difference=$converted
       ;;
     d)
       daemonize=true
@@ -72,10 +84,17 @@ if [ -z "$wallet_path" ]; then
   wallet_path=${HOME}
 fi
 
-temp_dir="node_health"
+if [ -z "$maximum_block_count_difference" ]; then
+  # Defaults to a 1000 block difference between locally reported block count and remotely/network reported block count
+  maximum_block_count_difference=1000
+fi
 
-maximum_block_count_difference=1000
-maximum_block_time_difference=86400 # 86400 is 1 day in seconds
+if [ -z "$maximum_block_time_difference" ]; then
+  # Defaults to 1 hour since last bingo if nothing else is specified
+  maximum_block_time_difference=3600
+fi
+
+temp_dir="node_health"
 
 #
 # Formatting setup
@@ -192,7 +211,7 @@ check_node() {
   
   if ls $node_path/latest/zerolog*.log 1> /dev/null 2>&1; then
     shard=`tac $node_path/latest/zerolog*.log | grep -oam 1 -E "\"(blockShard|[Ss]hardID)\":[0-3]" | grep -oam 1 -E "([0-3]+)"`
-    success_message "Your node is running on shard: ${bold_text}${shard}${normal_text}"
+    success_message "Detected shard: ${bold_text}${shard}${normal_text}"
   else
     error_message "Can't determine your shard id - can't find $node_path/latest/zerolog*.log"
   fi
@@ -288,8 +307,10 @@ check_sync_consensus_status() {
     calculate_difference "$current_timestamp" "$current_bingo_timestamp"
     
     if (( difference > maximum_block_time_difference )); then
+      convert_seconds_to_time "$difference"
+      
       echo
-      error_message "Your latest bingo was more than a full day ago!"
+      error_message "Your latest bingo was ${formatted_time} ago!"
       error_message "Either something is wrong with your node or the network is experiencing issues. Please check https://t.me/harmonypangaea or the Discord #pangaea channel for network updates."
     else
       success_message "Bingo status: latest bingo happened at ${bold_text}${current_bingo}${normal_text}"
@@ -303,7 +324,11 @@ check_wallet_balances() {
   output_header "${header_index}. Checking wallet balances for your node"
   ((header_index++))
   
-  cd $wallet_path; ./wallet.sh$network_switch balances; cd - 1> /dev/null 2>&1
+  if [ "$wallet_script_installed" = true ] || [ "$wallet_binary_installed" = true ]; then
+    cd $wallet_path; ./wallet.sh$network_switch balances; cd - 1> /dev/null 2>&1
+  else
+    error_message "Please make sure your wallet is configured correctly! Check the instructions in the previous sections!"
+  fi
   
   output_footer
 }
@@ -361,6 +386,10 @@ parse_timestamp() {
 
 convert_to_integer() {
   converted=$((10#$1))
+}
+
+convert_seconds_to_time() {
+  formatted_time=$(printf '%dd:%dh:%dm:%ds\n' $(($1/86400)) $(($1%86400/3600)) $(($1%3600/60)) $(($1%60)))
 }
 
 calculate_difference() {
