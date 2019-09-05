@@ -303,7 +303,7 @@ check_sync_consensus_status() {
     
       if (( difference > maximum_block_count_difference )); then
         error_message "Your node logs report your node as being in sync but you're more than ${maximum_block_count_difference} blocks away from your shard's current reported block number."
-        error_message "You might be running an old version of the node or something's wrong with your configuration."
+        error_message "Either the node hasn't been online for a while, something's wrong with your node configuration or the network is experiencing issues. Please check https://t.me/harmonypangaea or the Discord #pangaea channel for network updates."
       else
         success_message "Your node is fully synced: ${bold_text}YES${normal_text}"
         success_message "Your node is currently on block: ${bold_text}${current_block}${normal_text}"
@@ -328,7 +328,8 @@ check_sync_consensus_status() {
       
       echo
       error_message "Your latest bingo was ${formatted_time} ago!"
-      error_message "Either something is wrong with your node or the network is experiencing issues. Please check https://t.me/harmonypangaea or the Discord #pangaea channel for network updates."
+      error_message "Either the node hasn't been online for a while, something's wrong with your node configuration or the network is experiencing issues. Please check https://t.me/harmonypangaea or the Discord #pangaea channel for network updates."
+      
     else
       success_message "Bingo status: latest bingo happened at ${bold_text}${current_bingo} (${difference} second(s) ago)${normal_text}"
     fi
