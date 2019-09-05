@@ -1,0 +1,471 @@
+#!/bin/bash
+
+# Harmony Mainnet/Pangaea Node Health Checker
+version="0.1"
+
+# Default to the Pangaea network for now:
+network_switch=" -t"
+pangaea=true
+
+usage () {
+   cat << EOT
+Usage: $0 [option] command
+Options:
+   -n path        the path of the node directory - defaults to the current user's home directory if no path is provided
+   -w path        the path of the wallet directory - defaults to the current user's home directory if no path is provided
+   -i interval    interval between checking for bingos (30s, 1m, 30m, 1h etc.)
+   -d             if the process should be daemonized / run in an endless loop (e.g. if running it using Systemd and not Cron)
+   -t             use the Pangaea network
+   -m             use the Mainnet network
+   -h             print this help
+EOT
+}
+
+while getopts "n:w:i:dtmh" opt; do
+  case ${opt} in
+    n)
+      node_path="${OPTARG%/}"
+      ;;
+    w)
+      wallet_path="${OPTARG%/}"
+      ;;
+    i)
+      interval="${OPTARG}"
+      ;;
+    d)
+      daemonize=true
+      ;;
+    t)
+      pangaea=true
+      network_switch=" -t"
+      ;;
+    m)
+      pangaea=false
+      network_switch=""
+      ;;
+    h|*)
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+shift $((OPTIND-1))
+
+#
+# Variable setup
+#
+
+# Interval between checking node status
+# E.g: 30s => 30 seconds, 1m => 1 minute, 1h => 1 hour
+if [ -z "$interval" ]; then
+  interval=1m
+fi
+
+executing_user=`whoami`
+
+if [ -z "$node_path" ]; then
+  node_path=${HOME}
+fi
+
+if [ -z "$wallet_path" ]; then
+  wallet_path=${HOME}
+fi
+
+temp_dir="node_health"
+
+maximum_block_count_difference=1000
+maximum_block_time_difference=86400 # 86400 is 1 day in seconds
+
+#
+# Formatting setup
+#
+header_index=1
+bold_text=$(tput bold)
+normal_text=$(tput sgr0)
+black_text=$(tput setaf 0)
+red_text=$(tput setaf 1)
+green_text=$(tput setaf 2)
+yellow_text=$(tput setaf 3)
+
+
+#
+# Check functions
+#
+check_for_correct_installation() {
+  output_header "${header_index}. Installation - checking that your installation is correct"
+  ((header_index++))
+  
+  if ls $node_path/*.key 1> /dev/null 2>&1; then
+    success_message "BLS file detected in correct location: ${bold_text}YES${normal_text}"
+  else
+    error_message "BLS file detected in correct location: ${bold_text}NO${normal_text}"
+  fi
+  
+  if test -f $node_path/node.sh; then
+    node_script_installed=true
+    success_message "node.sh installed: ${bold_text}YES${normal_text}"
+  else
+    error_message "node.sh installed: ${bold_text}NO${normal_text}"
+    error_message "Are you sure you've entered the correct node path ($node_path) and that you've installed node.sh?"
+  fi
+  
+  if test -f $node_path/harmony; then
+    node_binary_installed=true
+    success_message "node binary installed: ${bold_text}YES${normal_text}"
+  else
+    echo
+    error_message "node binary installed: ${bold_text}NO${normal_text}"
+    error_message "Are you sure you've entered the correct node path ($node_path) and that you've installed the node binary ($node_path/harmony)?"
+  fi
+  
+  if test -f $wallet_path/wallet.sh; then
+    wallet_script_installed=true
+    success_message "wallet.sh installed: ${bold_text}YES${normal_text}"
+  else
+    echo
+    error_message "wallet.sh installed: ${bold_text}NO${normal_text}"
+    error_message "Are you sure you've entered the correct wallet path ($wallet_path) and that you've installed wallet.sh?"
+  fi
+  
+  if test -f $wallet_path/wallet; then
+    wallet_binary_installed=true
+    success_message "wallet binary installed: ${bold_text}YES${normal_text}"
+  else
+    echo
+    error_message "wallet binary installed: ${bold_text}NO${normal_text}"
+    error_message "Are you sure you've entered the correct wallet path ($wallet_path) and that you've installed the wallet binary ($wallet_path/wallet)?"
+    error_message "Install the wallet binary using cd $wallet_path; ./wallet.sh${network_switch} -d"
+  fi
+  
+  output_footer
+}
+
+check_wallet() {
+  output_header "${header_index}. Checking that your wallet is properly configured"
+  ((header_index++))
+  
+  if [ "$wallet_script_installed" = true ] || [ "$wallet_binary_installed" = true ]; then
+    if ls $wallet_path/.hmy/keystore/UTC* 1> /dev/null 2>&1; then
+      success_message "Found your wallet file in the keystore: ${bold_text}YES${normal_text}"
+      identify_address
+      success_message "Your address is: ${bold_text}${address}${normal_text}"
+    else
+      error_message "Found your wallet file in the keystore: ${bold_text}NO${normal_text}"
+      
+      if ls $wallet_path/UTC* 1> /dev/null 2>&1; then
+        mkdir -p $wallet_path/.hmy/keystore
+        cp $wallet_path/UTC* $wallet_path/.hmy/keystore
+        success_message "Found your wallet file in the wallet directory. Copying it to $wallet_path/.hmy/keystore. Please rerun the script again after seeing this message."
+      else
+        error_message "You need to copy your wallet file to $wallet_path/.hmy/keystore/"
+      fi
+      
+    fi
+  else
+    error_message "Please make sure your wallet is configured correctly! Check the instructions above!"
+  fi
+  
+  output_footer
+}
+
+check_node() {
+  output_header "${header_index}. Checking that your node is running"
+  ((header_index++))
+  
+  if ps aux | grep '[h]armony -bootnodes' | grep 54.86.126.90 > /dev/null; then
+    success_message "Node is running and using the latest bootnodes: ${bold_text}YES${normal_text}"
+  else
+    error_message "Node is running and using the latest bootnodes: ${bold_text}NO${normal_text}"
+    
+    if ps aux | grep '[h]armony -bootnodes' > /dev/null; then
+      error_message "You have a running node process but it isn't using the latest bootnodes!"
+      error_message "How to fix:"
+      error_message "Shut down the old node:"
+      error_message "sudo pkill node.sh && sudo pkill harmony"
+      error_message "Reinstall the node script:"
+      error_message "cd $node_path; rm -rf node.sh; wget https://raw.githubusercontent.com/harmony-one/harmony/master/scripts/node.sh; sudo chmod u+x node.sh"
+      error_message "Restart your node:"
+      error_message "cd $node_path; sudo ./node.sh${network_switch} -c"
+    fi
+  fi
+  
+  if ls $node_path/latest/zerolog*.log 1> /dev/null 2>&1; then
+    shard=`tac $node_path/latest/zerolog*.log | grep -oam 1 -E "\"(blockShard|[Ss]hardID)\":[0-3]" | grep -oam 1 -E "([0-3]+)"`
+    success_message "Your node is running on shard: ${bold_text}${shard}${normal_text}"
+  else
+    error_message "Can't determine your shard id - can't find $node_path/latest/zerolog*.log"
+  fi
+  
+  output_footer
+}
+
+check_network_status() {
+  output_header "${header_index}. Checking network status for your shard and node"
+  ((header_index++))
+  
+  download_file "network"
+  shard_data=$(cat ${temp_dir}/network | grep -i -m 1 "Shard $shard")
+  
+  if [ -z "$shard_data" ]; then
+    error_message "Couldn't download the network file from ${full_url}"
+  else
+    shard_status=`echo $shard_data | grep -oam 1 -E "Status is: (ONLINE|OFFLINE)" | grep -oam 1 -E "(ONLINE|OFFLINE)"`
+    network_time=`echo $shard_data | grep -oam 1 -E "\(Last updated:.*" | sed "s/(Last updated: //g"`
+    network_time="${network_time%)}"
+    
+    success_message "Successfully fetched the network status from ${full_url} - last network update: ${bold_text}${network_time}${normal_text}"
+    echo
+    
+    echo "${bold_text}Shard status:${normal_text}"
+    
+    if [ "$shard_status" = "ONLINE" ]; then
+      current_network_block=`echo $shard_data | grep -oam 1 -E "Block ([0-9]+)" | grep -oam 1 -E "[0-9]+"`
+      convert_to_integer "$current_network_block"
+      current_network_block=$converted
+      success_message "Shard ${bold_text}${shard}${normal_text}${green_text} is: ${bold_text}${shard_status}${normal_text}"
+      success_message "Your shard's latest recorded block is: ${bold_text}${current_network_block}${normal_text}"
+    else
+      error_message "Shard ${bold_text}${shard}${normal_text}${red_text} is: ${bold_text}${shard_status}${normal_text}"
+    fi
+    
+    if [ -z "$address" ]; then
+      echo
+      error_message "Can't figure out your address - won't proceed to check the network status for your node. Please check for errors in section 1 & 2."
+    else
+      download_file "network.csv"
+      reported_as_online=$(cat ${temp_dir}/network.csv | grep "$address" | grep true)
+    
+      echo
+      echo "${bold_text}Node status:${normal_text}"
+    
+      if [ -z "$reported_as_online" ]; then
+        error_message "Your address ${bold_text}${address}${normal_text}${red_text} is reported as: ${bold_text}OFFLINE!${normal_text}"
+        error_message "If this script reports your node as running but the network consider you OFFLINE there might be an issue with an internal node running your address. Please report your address to the support representatives on https://t.me/harmonypangaea or in the Discord #pangaea channel."
+      else
+        success_message "Your address ${bold_text}${address}${normal_text}${green_text} is reported as: ${bold_text}ONLINE!${normal_text}"
+      fi
+    fi
+  fi
+  
+  output_footer
+}
+
+check_sync_consensus_status() {
+  output_header "${header_index}. Checking syncing and consensus status for your node"
+  ((header_index++))
+  
+  parse_current_block
+  parse_sync_status
+  parse_current_bingo
+  
+  if [ -z "$current_block" ]; then
+    error_message "Couldn't find a block number! Are you sure the node is running?"
+  else    
+    if [ "$node_synced" = true ]; then
+      calculate_difference "$current_network_block" "$current_block"
+    
+      if (( difference > maximum_block_count_difference )); then
+        error_message "Your node logs report your node as being in sync but you're more than ${maximum_block_count_difference} blocks away from your shard's current reported block number."
+        error_message "You might be running an old version of the node or something's wrong with your configuration."
+      else
+        success_message "Your node is fully synced: ${bold_text}YES${normal_text}"
+        success_message "Your node is currently on block: ${bold_text}${current_block}${normal_text}"
+      fi
+      
+    else
+      success_message "Your node is currently syncing!"
+      success_message "Your node is currently on block: ${bold_text}${current_block}${normal_text}"
+    fi
+  fi
+  
+  if [ -z "$current_bingo" ]; then
+    error_message "Bingo status: couldn't find any recent bingos!"
+  else
+    parse_timestamp "$current_bingo"
+    current_bingo_timestamp=$timestamp
+    current_timestamp=`date +"%s"`
+    calculate_difference "$current_timestamp" "$current_bingo_timestamp"
+    
+    if (( difference > maximum_block_time_difference )); then
+      echo
+      error_message "Your latest bingo was more than a full day ago!"
+      error_message "Either something is wrong with your node or the network is experiencing issues. Please check https://t.me/harmonypangaea or the Discord #pangaea channel for network updates."
+    else
+      success_message "Bingo status: latest bingo happened at ${bold_text}${current_bingo}${normal_text}"
+    fi
+  fi
+  
+  output_footer
+}
+
+check_wallet_balances() {
+  output_header "${header_index}. Checking wallet balances for your node"
+  ((header_index++))
+  
+  cd $wallet_path; ./wallet.sh$network_switch balances; cd - 1> /dev/null 2>&1
+  
+  output_footer
+}
+
+#
+# Helper methods
+#
+parse_current_bingo() {
+  parse_from_zerolog "bingo"
+  current_bingo=$parsed_zerolog_value
+}
+
+parse_sync_status() {
+  parse_from_zerolog "sync"
+  current_sync_status=$parsed_zerolog_value
+  
+  if [ -z "$current_sync_status" ]; then
+    node_synced=false
+  else
+    node_synced=true
+  fi
+}
+
+parse_current_block() {
+  parse_from_zerolog "block"
+  current_block=$parsed_zerolog_value
+  convert_to_integer "$current_block"
+  current_block=$converted
+}
+
+parse_from_zerolog() {
+  if ls $node_path/latest/zerolog*.log 1> /dev/null 2>&1; then
+    case $1 in
+    bingo)
+      parsed_zerolog_value=`tac ${node_path}/latest/zerolog*.log | grep -am 1 "BINGO" | grep -oam 1 -E "\"time\":\"([0-9]*\-[0-9]*\-[0-9]*T?[0-9]*:[0-9]*:[0-9]*)+(\.?[0-9]*)(\+[0-9]*:[0-9]*)[^\"]*\"" | grep -oam 1 -E "(([0-9]*\-[0-9]*\-[0-9]*T?[0-9]*:[0-9]*:[0-9]*)+(\.?[0-9]*)(\+[0-9]*:[0-9]*)[^\"]*)" | sed "s/\..*//" | sed -e 's/T/ /g'`
+      ;;
+    block)
+      parsed_zerolog_value=`tac ${node_path}/latest/zerolog*.log | grep -oam 1 -E "\"(blockNumber|myBlock)\":[0-9\"]*" | grep -oam 1 -E "[0-9]+"`
+      ;;
+    sync)
+      parsed_zerolog_value=`tac ${node_path}/latest/zerolog*.log | grep -oam 1 "Node is now IN SYNC"`
+      ;;
+    *)
+      ;;
+    esac
+  else
+    error_message "Can't find ${node_path}/latest/zerolog*.log - are you sure you've entered the correct node path ($node_path)?"
+  fi
+}
+
+parse_timestamp() {
+  timestamp=$(date -d "${1}" +"%s")
+  timestamp=$((10#$timestamp))
+}
+
+convert_to_integer() {
+  converted=$((10#$1))
+}
+
+calculate_difference() {
+  difference=$(($1-$2))
+}
+
+identify_address() {
+  address=`cd $wallet_path; ./wallet.sh$network_switch list | grep -oam 1 -E "account: (one[a-z0-9]+)" | grep -oam 1 -E "one[a-z0-9]+"`
+}
+
+run_wallet_command() {
+  wallet_output=`cd $wallet_path; ./wallet.sh$network_switch $1; cd - 1> /dev/null 2>&1`
+}
+
+download_file() {
+  mkdir -p $temp_dir
+  rm -rf "${temp_dir}/${1}"
+  base_url="https://harmony.one/pga"
+  full_url="${base_url}/${1}"
+  wget -q $full_url --directory-prefix=$temp_dir
+}
+
+setup() {
+  mkdir -p $temp_dir
+}
+
+cleanup() {
+  rm -rf $temp_dir
+}
+
+# 
+# Output methods
+#
+success_message() {
+  echo ${green_text}${1}${black_text}
+}
+
+error_message() {
+  echo ${red_text}${1}${black_text}
+}
+
+output_banner() {
+  output_header "Running Harmony Mainnet/Pangaea Node Health Checker v${version}"
+  echo "You're running as: ${bold_text}${executing_user}${normal_text}"
+  
+  if [ "$pangaea" = true ]; then
+    echo "Checking health for the node using the ${bold_text}Pangaea network${normal_text}!"
+  else
+    echo "Checking health for the node using the ${bold_text}Mainnet${normal_text}!"
+  fi
+  
+  current_time=`date`
+  echo "Current time is: ${current_time}"
+}
+
+output_header() {
+  echo
+  output_separator
+  echo "${bold_text}${1}${normal_text}"
+  output_separator
+  echo
+}
+
+output_footer() {
+  echo
+  output_separator
+}
+
+output_separator() {
+  echo "--------------------------------------------------------------"
+}
+
+
+#
+# Main function
+#
+check_status() {
+  setup
+  output_banner
+  
+  check_for_correct_installation
+  check_wallet
+  check_node
+  
+  if [ "$pangaea" = true ]; then
+    check_network_status
+  fi
+  
+  check_sync_consensus_status
+  check_wallet_balances
+  
+  #cleanup
+}
+
+
+#
+# Program execution
+#
+if [ "$daemonize" = true ]; then
+  # Run in an infinite loop
+  while [ 1 ]
+  do
+    check_status
+    sleep $interval
+  done
+else
+  check_status
+fi

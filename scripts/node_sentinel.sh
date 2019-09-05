@@ -4,9 +4,10 @@ usage () {
    cat << EOT
 Usage: $0 [option] command
 Options:
-   -t token       the bot's Telegram API token
+   -b token       the bot's Telegram API token
    -c chat_id     the chat id of where to send the bot's messages
-   -p path        the path of the node directory (without an ending slash) - will default to the current user's home directory if no path is provided
+   -n path        the path of the node directory - defaults to the current user's home directory if no path is provided
+   -w path        the path of the wallet directory - defaults to the current user's home directory if no path is provided
    -a address     the address of the node that is monitored
    -i interval    interval between checking for bingos (30s, 1m, 30m, 1h etc.)
    -s             send telegram messages for successful checks (and not only for failed checks).
@@ -15,16 +16,19 @@ Options:
 EOT
 }
 
-while getopts "t:c:p:a:i:sdh" opt; do
+while getopts "b:c:n:w:a:i:sdh" opt; do
   case ${opt} in
-    t)
+    b)
       telegram_bot_token="${OPTARG}"
       ;;
     c)
       telegram_chat_id="${OPTARG}"
       ;;
-    p)
-      node_path="${OPTARG}"
+    n)
+      node_path="${OPTARG%/}"
+      ;;
+    w)
+      wallet_path="${OPTARG%/}"
       ;;
     a)
       node_address="${OPTARG}"
@@ -47,6 +51,10 @@ done
 
 shift $((OPTIND-1))
 
+#
+# Variables
+#
+
 # Interval between bingo checks
 # E.g: 30s => 30 seconds, 1m => 1 minute, 1h => 1 hour
 if [ -z "$interval" ]; then
@@ -61,6 +69,9 @@ fi
 
 bingo_file="bingos"
 
+#
+# Main functions
+#
 check_bingo() {
   parse_current_bingo
   
@@ -80,25 +91,11 @@ check_bingo() {
       fi
       
     else
-      echo "Bingo file doesn't exist"
       echo $current_bingo > $bingo_file
       previous_bingo=$current_bingo
+      compare_bingos "$current_bingo" "$previous_bingo"
     fi
   fi
-}
-
-parse_current_bingo() {
-  if ls $node_path/latest/zerolog*.log 1> /dev/null 2>&1; then
-    current_bingo=`tac $node_path/latest/zerolog*.log | grep -am 1 "BINGO" | grep -oam 1 -E "\"time\":\"([0-9]*\-[0-9]*\-[0-9]*T?[0-9]*:[0-9]*:[0-9]*)+(\.?[0-9]*)(\+[0-9]*:[0-9]*)[^\"]*\"" | grep -oam 1 -E "(([0-9]*\-[0-9]*\-[0-9]*T?[0-9]*:[0-9]*:[0-9]*)+(\.?[0-9]*)(\+[0-9]*:[0-9]*)[^\"]*)" | sed "s/\..*//" | sed -e 's/T/ /g'`
-  else
-    echo "Can't find $node_path/latest/zerolog*.log - are you sure you've entered the correct node path ($node_path)?"
-    exit 1
-  fi
-}
-
-parse_timestamp() {
-  timestamp=$(date -d "${1}" +"%s")
-  timestamp=$((10#$timestamp))
 }
 
 compare_bingos() {
@@ -128,13 +125,66 @@ compare_bingos() {
   fi
 }
 
+
+#
+# Helper methods
+#
+parse_current_bingo() {
+  parse_from_zerolog "bingo"
+  current_bingo=$parsed_zerolog_value
+}
+
+parse_sync_status() {
+  parse_from_zerolog "sync"
+  current_sync_status=$parsed_zerolog_value
+  
+  if [ -z "$current_sync_status" ]; then
+    node_synced=false
+  else
+    node_synced=true
+  fi
+}
+
+parse_current_block() {
+  parse_from_zerolog "block"
+  current_block=$parsed_zerolog_value
+  convert_to_integer "$current_block"
+  current_block=$converted
+}
+
+parse_from_zerolog() {
+  if ls $node_path/latest/zerolog*.log 1> /dev/null 2>&1; then
+    case $1 in
+    bingo)
+      parsed_zerolog_value=`tac ${node_path}/latest/zerolog*.log | grep -am 1 "BINGO" | grep -oam 1 -E "\"time\":\"([0-9]*\-[0-9]*\-[0-9]*T?[0-9]*:[0-9]*:[0-9]*)+(\.?[0-9]*)(\+[0-9]*:[0-9]*)[^\"]*\"" | grep -oam 1 -E "(([0-9]*\-[0-9]*\-[0-9]*T?[0-9]*:[0-9]*:[0-9]*)+(\.?[0-9]*)(\+[0-9]*:[0-9]*)[^\"]*)" | sed "s/\..*//" | sed -e 's/T/ /g'`
+      ;;
+    block)
+      parsed_zerolog_value=`tac ${node_path}/latest/zerolog*.log | grep -oam 1 -E "\"(blockNumber|myBlock)\":[0-9\"]*" | grep -oam 1 -E "[0-9]+"`
+      ;;
+    sync)
+      parsed_zerolog_value=`tac ${node_path}/latest/zerolog*.log | grep -oam 1 "Node is now IN SYNC"`
+      ;;
+    *)
+      ;;
+    esac
+  else
+    error_message "Can't find ${node_path}/latest/zerolog*.log - are you sure you've entered the correct node path ($node_path)?"
+  fi
+}
+
+parse_timestamp() {
+  timestamp=$(date -d "${1}" +"%s")
+  timestamp=$((10#$timestamp))
+}
+
 send_telegram_message() {
   url="https://api.telegram.org/bot$telegram_bot_token/sendMessage"
   curl -s -X POST $url -d chat_id=$telegram_chat_id -d text="$1" -d parse_mode="HTML" >> /dev/null
 }
 
-echo "Running monitoring script as $executing_user!"
-
+#
+# Program execution
+#
 if [ "$daemonize" = true ]; then
   # Run in an infinite loop
   while [ 1 ]
