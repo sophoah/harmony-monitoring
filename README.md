@@ -43,7 +43,7 @@ The only requirement is that wget is installed (which it typically is). The rest
 
 #### Installation & Setup
 
-`sudo rm -rf node_health.sh; wget -q https://raw.githubusercontent.com/SebastianJ/harmony-monitoring/master/scripts/node_health.sh && sudo chmod u+x node_health.sh`
+`sudo rm -rf node_health.sh && wget -q https://raw.githubusercontent.com/SebastianJ/harmony-monitoring/master/scripts/node_health.sh && sudo chmod u+x node_health.sh`
 
 #### Running the script
 
