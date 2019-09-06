@@ -168,7 +168,10 @@ check_wallet() {
     if ls $wallet_path/.hmy/keystore/UTC* 1> /dev/null 2>&1; then
       success_message "Found your wallet file in the keystore: ${bold_text}YES${normal_text}"
       identify_address
+      identify_base16_address "$address"
+      
       success_message "Your address is: ${bold_text}${address}${normal_text}"
+      success_message "The base16/Ethereum version of your address is: ${bold_text}${base16_address}${normal_text}"
     else
       error_message "Found your wallet file in the keystore: ${bold_text}NO${normal_text}"
       
@@ -439,6 +442,12 @@ calculate_difference() {
 
 identify_address() {
   address=`cd $wallet_path; ./wallet.sh$network_switch list | grep -oam 1 -E "account: (one[a-z0-9]+)" | grep -oam 1 -E "one[a-z0-9]+"`
+  cd - 1> /dev/null 2>&1
+}
+
+identify_base16_address() {
+  base16_address=`cd $wallet_path; ./wallet.sh$network_switch format --address ${1} | grep -oam 1 -E "0x[a-zA-Z0-9]+"`
+  cd - 1> /dev/null 2>&1
 }
 
 check_bls_keyfile_status() {
