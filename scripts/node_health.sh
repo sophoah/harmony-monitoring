@@ -19,11 +19,12 @@ Options:
    -d           if the process should be daemonized / run in an endless loop (e.g. if running it using Systemd and not Cron)
    -t           use the Pangaea network
    -m           use the Mainnet network
+   -f           disable color and text formatting
    -h           print this help
 EOT
 }
 
-while getopts "n:w:i:c:s:dtmh" opt; do
+while getopts "n:w:i:c:s:dtmfh" opt; do
   case ${opt} in
     n)
       node_path="${OPTARG%/}"
@@ -54,6 +55,9 @@ while getopts "n:w:i:c:s:dtmh" opt; do
     m)
       pangaea=false
       network_switch=""
+      ;;
+    f)
+      perform_formatting=false
       ;;
     h|*)
       usage
@@ -94,19 +98,33 @@ if [ -z "$maximum_block_time_difference" ]; then
   maximum_block_time_difference=3600
 fi
 
+if [ -z "$perform_formatting" ]; then
+  # Defaults to 1 hour since last bingo if nothing else is specified
+  perform_formatting=true
+fi
+
 temp_dir="node_health"
 
 #
 # Formatting setup
 #
 header_index=1
-bold_text=$(tput bold)
-normal_text=$(tput sgr0)
-black_text=$(tput setaf 0)
-red_text=$(tput setaf 1)
-green_text=$(tput setaf 2)
-yellow_text=$(tput setaf 3)
 
+if [ "$perform_formatting" = true ]; then
+  bold_text=$(tput bold)
+  normal_text=$(tput sgr0)
+  black_text=$(tput setaf 0)
+  red_text=$(tput setaf 1)
+  green_text=$(tput setaf 2)
+  yellow_text=$(tput setaf 3)
+else
+  bold_text=""
+  normal_text=""
+  black_text=""
+  red_text=""
+  green_text=""
+  yellow_text=""
+fi
 
 #
 # Check functions
