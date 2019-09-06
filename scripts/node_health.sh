@@ -339,25 +339,30 @@ check_sync_consensus_status() {
   if [ -z "$current_bingo" ]; then
     error_message "Bingo status: couldn't find any recent bingos!"
   else
-    parse_timestamp "$current_bingo"
-    current_bingo_timestamp=$timestamp
-    current_timestamp=`date +"%s"`
-    calculate_difference "$current_timestamp" "$current_bingo_timestamp"
     
-    if (( difference > maximum_block_time_difference )); then
-      convert_seconds_to_time "$difference"
+    if [ "$bingo_date_parsed" = true ]; then
+      parse_timestamp "$current_bingo"
+      current_bingo_timestamp=$timestamp
+      current_timestamp=`date +"%s"`
+      calculate_difference "$current_timestamp" "$current_bingo_timestamp"
+    
+      if (( difference > maximum_block_time_difference )); then
+        convert_seconds_to_time "$difference"
       
-      echo
-      error_message "Your latest bingo was ${formatted_time} ago!"
+        echo
+        error_message "Bingo status: latest bingo happened at ${bold_text}${current_bingo} - ${formatted_time} ago!"
       
-      if [ "$shard_status" = "ONLINE" ]; then
-        error_message "Either the node hasn't been online for a while or something's wrong with your node configuration."
+        if [ "$shard_status" = "ONLINE" ]; then
+          error_message "Either the node hasn't been online for a while or something's wrong with your node configuration."
+        else
+          error_message "Your shard is currently down. Please check https://t.me/harmonypangaea or the Discord #pangaea channel for network updates."
+        fi
+      
       else
-        error_message "Your shard is currently down. Please check https://t.me/harmonypangaea or the Discord #pangaea channel for network updates."
+        success_message "Bingo status: latest bingo happened at ${bold_text}${current_bingo} (${difference} second(s) ago)${normal_text}"
       fi
-      
     else
-      success_message "Bingo status: latest bingo happened at ${bold_text}${current_bingo} (${difference} second(s) ago)${normal_text}"
+      success_message "Bingo status: latest bingo happened at ${bold_text}${current_bingo}${normal_text}"
     fi
   fi
   
@@ -382,7 +387,14 @@ check_wallet_balances() {
 #
 parse_current_bingo() {
   parse_from_zerolog "bingo"
-  current_bingo=$parsed_zerolog_value
+  
+  if [ -z "$secondary_parsed_zerolog_value" ]; then
+    current_bingo=$parsed_zerolog_value
+    bingo_date_parsed=false
+  else
+    current_bingo=$secondary_parsed_zerolog_value
+    bingo_date_parsed=true
+  fi
 }
 
 parse_sync_status() {
@@ -407,7 +419,8 @@ parse_from_zerolog() {
   if ls $node_path/latest/zerolog*.log 1> /dev/null 2>&1; then
     case $1 in
     bingo)
-      parsed_zerolog_value=`tac ${node_path}/latest/zerolog*.log | grep -am 1 "BINGO" | grep -oam 1 -E "\"time\":\"([0-9]*\-[0-9]*\-[0-9]*T?[0-9]*:[0-9]*:[0-9]*)+(\.?[0-9]*)(\+[0-9]*:[0-9]*)[^\"]*\"" | grep -oam 1 -E "(([0-9]*\-[0-9]*\-[0-9]*T?[0-9]*:[0-9]*:[0-9]*)+(\.?[0-9]*)(\+[0-9]*:[0-9]*)[^\"]*)" | sed "s/\..*//" | sed -e 's/T/ /g'`
+      parsed_zerolog_value=`tac ${node_path}/latest/zerolog*.log | grep -am 1 "BINGO" | grep -oam 1 -E "\"time\":\"[^\"]+" | sed "s/\"time\":\"//"`
+      secondary_parsed_zerolog_value=`echo ${parsed_zerolog_value} | sed "s/\..*//" | sed -e 's/T/ /g'`
       ;;
     block)
       parsed_zerolog_value=`tac ${node_path}/latest/zerolog*.log | grep -oam 1 -E "\"(blockNumber|myBlock)\":[0-9\"]*" | grep -oam 1 -E "[0-9]+"`
