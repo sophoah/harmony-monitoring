@@ -161,7 +161,7 @@ check_for_correct_installation() {
 }
 
 check_wallet() {
-  output_header "${header_index}. Wallet configuration - checking that your wallet is properly configured"
+  output_header "${header_index}. Wallet - checking that your wallet is properly configured"
   ((header_index++))
   
   if [ "$wallet_script_installed" = true ] || [ "$wallet_binary_installed" = true ]; then
@@ -191,6 +191,15 @@ check_wallet() {
 check_node() {
   output_header "${header_index}. Node - checking that your node is running"
   ((header_index++))
+    
+  check_bls_keyfile_status "${address}"
+  
+  if [ -z "$bls_public_key" ]; then
+    error_message "Couldn't find your node's address in the bls public key list on https://bit.ly/pga-keys - are you sure that you are using a correct bls key file?"
+    error_message "Please contact an admin on https://t.me/harmonypangaea or in the Discord #pangaea channel."
+  else
+    success_message "Your node is running using the bls public key: ${bold_text}${bls_public_key}${normal_text}"
+  fi
   
   if ps aux | grep '[h]armony -bootnodes' | grep 54.86.126.90 > /dev/null; then
     success_message "Node is running and using the latest bootnodes: ${bold_text}YES${normal_text}"
@@ -227,7 +236,9 @@ check_network_status() {
   output_header "${header_index}. Network status - checking network status for your shard and node"
   ((header_index++))
   
-  download_file "network"
+  pangaea_status_url="https://harmony.one/pga"
+  
+  download_file "$pangaea_status_url" "network"
   shard_data=$(cat ${temp_dir}/network | grep -i -m 1 "Shard $shard")
   
   if [ -z "$shard_data" ]; then
@@ -256,7 +267,7 @@ check_network_status() {
       echo
       error_message "Can't figure out your address - won't proceed to check the network status for your node. Please check for errors in section 1 & 2."
     else
-      download_file "network.csv"
+      download_file "$pangaea_status_url" "network.csv"
       reported_as_online=$(cat ${temp_dir}/network.csv | grep "$address" | grep true)
     
       echo
@@ -430,15 +441,19 @@ identify_address() {
   address=`cd $wallet_path; ./wallet.sh$network_switch list | grep -oam 1 -E "account: (one[a-z0-9]+)" | grep -oam 1 -E "one[a-z0-9]+"`
 }
 
+check_bls_keyfile_status() {
+  download_file "https://bit.ly" "pga-keys"
+  bls_public_key=$(cat ${temp_dir}/pga-keys | grep "${1}" | grep -oam 1 -E "BlsPublicKey: \"[a-z0-9]+\"" | grep -oam 1 -E "\"[a-z0-9]+\"" | grep -oam 1 -E "[a-z0-9]+")
+}
+
 run_wallet_command() {
   wallet_output=`cd $wallet_path; ./wallet.sh$network_switch $1; cd - 1> /dev/null 2>&1`
 }
 
 download_file() {
   mkdir -p $temp_dir
-  rm -rf "${temp_dir}/${1}"
-  base_url="https://harmony.one/pga"
-  full_url="${base_url}/${1}"
+  rm -rf "${temp_dir}/${2}"
+  full_url="${1%/}/${2}"
   wget -q $full_url --directory-prefix=$temp_dir
 }
 
