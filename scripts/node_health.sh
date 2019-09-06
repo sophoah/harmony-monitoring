@@ -509,11 +509,11 @@ cleanup() {
 # Output methods
 #
 success_message() {
-  echo ${green_text}${1}${black_text}
+  echo ${green_text}${1}${normal_text}
 }
 
 error_message() {
-  echo ${red_text}${1}${black_text}
+  echo ${red_text}${1}${normal_text}
 }
 
 output_banner() {
