@@ -14,7 +14,7 @@ Options:
    -n path      the path of the node directory - defaults to the current user's home directory if no path is provided
    -w path      the path of the wallet directory - defaults to the current user's home directory if no path is provided
    -i interval  interval between running the program when running deamonized / using -d (e.g: 30s, 1m, 30m, 1h etc.)
-   -c count     the maximum number of blocks your node can be behind the reported block for your shard (defaults to 1000) before errors are reported
+   -c count     the maximum number of blocks your node can be behind the reported block for your shard before errors are reported. Defaults to 1000 blocks
    -s seconds   the maximum number of seconds since your last bingo before errors are reported. Defaults to 3600 = 1 hour
    -d           if the process should be daemonized / run in an endless loop (e.g. if running it using Systemd and not Cron)
    -t           use the Pangaea network
