@@ -265,13 +265,15 @@ check_network_status() {
       if [ -z "$reported_as_online" ]; then
         error_message "Your address ${bold_text}${address}${normal_text}${red_text} is reported as: ${bold_text}OFFLINE!${normal_text}"
         
-        if [ "$node_running" = true ]; then
-          error_message "Your node has been detected as running on your server but the Harmony Pangaea Network status page (https://harmony.one/pga/network) reports you as OFFLINE."
-          error_message "If this issue continues after the next network status update (usually happens within the next 15-30 minutes) there might be a misconfigured or erronous internal node running your address."
-          error_message "Please report your address ${address} to the support representatives on https://t.me/harmonypangaea or in the Discord #pangaea channel."
-        else
-          error_message "There's no node running on your server and Harmony's Network status page has reported you as OFFLINE."
-          error_message "Please start your node as soon as possible: cd ${node_path}; ./node.sh${network_switch} (don't forget to run the command in tmux if you're using tmux)"
+        if [ "$shard_status" = "ONLINE" ]; then
+          if [ "$node_running" = true ]; then
+            error_message "Your node has been detected as running on your server but the Harmony Pangaea Network status page (https://harmony.one/pga/network) reports you as OFFLINE."
+            error_message "If this issue continues after the next network status update (usually happens within the next 15-30 minutes) there might be a misconfigured or erronous internal node running your address."
+            error_message "Please report your address ${address} to the support representatives on https://t.me/harmonypangaea or in the Discord #pangaea channel."
+          else
+            error_message "There's no node running on your server and Harmony's Network status page has reported you as OFFLINE."
+            error_message "Please start your node as soon as possible: cd ${node_path}; ./node.sh${network_switch} (don't forget to run the command in tmux if you're using tmux)"
+          fi
         fi
       else
         success_message "Your address ${bold_text}${address}${normal_text}${green_text} is reported as: ${bold_text}ONLINE!${normal_text}"
@@ -303,7 +305,12 @@ check_sync_consensus_status() {
     
       if (( difference > maximum_block_count_difference )); then
         error_message "Your node logs report your node as being in sync but you're more than ${maximum_block_count_difference} blocks away from your shard's current reported block number."
-        error_message "Either the node hasn't been online for a while, something's wrong with your node configuration or the network is experiencing issues. Please check https://t.me/harmonypangaea or the Discord #pangaea channel for network updates."
+        
+        if [ "$shard_status" = "ONLINE" ]; then
+          error_message "Either the node hasn't been online for a while or something's wrong with your node configuration."
+        else
+          error_message "Your shard is currently down. Please check https://t.me/harmonypangaea or the Discord #pangaea channel for network updates."
+        fi
       else
         success_message "Your node is fully synced: ${bold_text}YES${normal_text}"
         success_message "Your node is currently on block: ${bold_text}${current_block}${normal_text}"
@@ -328,7 +335,12 @@ check_sync_consensus_status() {
       
       echo
       error_message "Your latest bingo was ${formatted_time} ago!"
-      error_message "Either the node hasn't been online for a while, something's wrong with your node configuration or the network is experiencing issues. Please check https://t.me/harmonypangaea or the Discord #pangaea channel for network updates."
+      
+      if [ "$shard_status" = "ONLINE" ]; then
+        error_message "Either the node hasn't been online for a while or something's wrong with your node configuration."
+      else
+        error_message "Your shard is currently down. Please check https://t.me/harmonypangaea or the Discord #pangaea channel for network updates."
+      fi
       
     else
       success_message "Bingo status: latest bingo happened at ${bold_text}${current_bingo} (${difference} second(s) ago)${normal_text}"
