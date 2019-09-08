@@ -141,7 +141,8 @@ check_for_correct_installation() {
   
   if test -f $node_path/node.sh; then
     node_script_installed=true
-    success_message "node.sh installed: ${bold_text}YES${normal_text}"
+    nodefiledate=$(date -r $node_path/node.sh)
+    success_message "node.sh installed: ${bold_text}YES (${nodefiledate})${normal_text}"
   else
     error_message "node.sh installed: ${bold_text}NO${normal_text}"
     error_message "Are you sure you've entered the correct node path ($node_path) and that you've installed node.sh?"
@@ -149,7 +150,8 @@ check_for_correct_installation() {
   
   if test -f $node_path/harmony; then
     node_binary_installed=true
-    success_message "node binary installed: ${bold_text}YES${normal_text}"
+    nodebinfiledate=$(date -r $node_path/harmony)
+    success_message "node binary installed: ${bold_text}YES (${nodebinfiledate})${normal_text}"
   else
     echo
     error_message "node binary installed: ${bold_text}NO${normal_text}"
@@ -158,7 +160,8 @@ check_for_correct_installation() {
   
   if test -f $wallet_path/wallet.sh; then
     wallet_script_installed=true
-    success_message "wallet.sh installed: ${bold_text}YES${normal_text}"
+    walletfiledate=$(date -r $wallet_path/wallet.sh)
+    success_message "wallet.sh installed: ${bold_text}YES (${walletfiledate})${normal_text}"
   else
     echo
     error_message "wallet.sh installed: ${bold_text}NO${normal_text}"
@@ -167,7 +170,8 @@ check_for_correct_installation() {
   
   if test -f $wallet_path/wallet; then
     wallet_binary_installed=true
-    success_message "wallet binary installed: ${bold_text}YES${normal_text}"
+    walletbinfiledate=$(date -r $wallet_path/wallet)
+    success_message "wallet binary installed: ${bold_text}YES (${walletbinfiledate})${normal_text}"
   else
     echo
     error_message "wallet binary installed: ${bold_text}NO${normal_text}"
